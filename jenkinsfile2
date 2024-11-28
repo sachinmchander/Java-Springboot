@@ -3,10 +3,29 @@ pipeline {
     
     // Define environment variables
     environment {
-        JAVA_HOME = tool 'JDK17'
+        JAVA_HOME = tool 'JDK1i7'
         MAVEN_HOME = tool 'Maven3'
         PATH = "${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${PATH}"
-        
+        plugins {
+    id 'org.springframework.boot' version '3.1.2'
+    id 'io.spring.dependency-management' version '1.1.3'
+    id 'groovy'
+}
+
+group = 'com.example'
+version = '1.0.0-SNAPSHOT'
+sourceCompatibility = '17'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.codehaus.groovy:groovy'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
         // GitHub credentials ID from Jenkins credentials
         GITHUB_CREDENTIALS = 'github-credentials'
     }
