@@ -1,0 +1,150 @@
+pipeline {
+    agent any
+    
+    // Define environment variables
+    environment {
+        JAVA_HOME = tool 'JDK17'
+        MAVEN_HOME = tool 'Maven3'
+        PATH = "${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${PATH}"
+        
+        // GitHub credentials ID from Jenkins credentials
+        GITHUB_CREDENTIALS = 'github-credentials'
+    }
+    
+    // Define parameters for flexibility
+    parameters {
+        choice(
+            name: 'BUILD_TYPE', 
+            choices: ['build', 'test', 'deploy'], 
+            description: 'Type of build to perform'
+        )
+    }
+    
+    // Stages of the pipeline
+    stages {
+        // Clone the repository
+        stage('Checkout') {
+            steps {
+                // Checkout the current branch
+                checkout scm
+                
+                // Additional git configuration
+                script {
+                    // Get current branch name
+                    env.BRANCH_NAME = env.BRANCH_NAME ?: env.GIT_BRANCH.split('/')[-1]
+                    
+                    // Print branch information
+                    echo "Building branch: ${env.BRANCH_NAME}"
+                }
+            }
+        }
+        
+        // Validate and setup project
+        stage('Setup') {
+            steps {
+                // Verify Java and Maven versions
+                sh 'java -version'
+                sh 'mvn -version'
+                
+                // Clean previous builds
+                sh 'mvn clean'
+            }
+        }
+        
+        // Compile the project
+        stage('Compile') {
+            steps {
+                sh 'mvn compile'
+            }
+        }
+        
+        // Run unit tests
+        stage('Test') {
+            when {
+                expression { 
+                    params.BUILD_TYPE == 'test' || params.BUILD_TYPE == 'deploy' 
+                }
+            }
+            steps {
+                sh 'mvn test'
+                
+                // Publish test results
+                junit '**/target/surefire-reports/*.xml'
+            }
+        }
+        
+        // Build artifact
+        stage('Build') {
+            when {
+                expression { 
+                    params.BUILD_TYPE == 'build' || params.BUILD_TYPE == 'deploy' 
+                }
+            }
+            steps {
+                sh 'mvn package -DskipTests'
+            }
+        }
+        
+        // Branch-specific deployment
+        stage('Deploy') {
+            when {
+                expression { 
+                    params.BUILD_TYPE == 'deploy' 
+                }
+            }
+            steps {
+                script {
+                    // Different deployment strategies based on branch
+                    if (env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master') {
+                        // Production deployment
+                        echo "Deploying to production environment"
+                        sh 'mvn deploy -Pprod'
+                    } else if (env.BRANCH_NAME.startsWith('release/')) {
+                        // Staging deployment
+                        echo "Deploying to staging environment"
+                        sh 'mvn deploy -Pstaging'
+                    } else if (env.BRANCH_NAME.startsWith('feature/')) {
+                        // Development deployment
+                        echo "Deploying to development environment"
+                        sh 'mvn deploy -Pdev'
+                    }
+                }
+            }
+        }
+    }
+    
+    // Post-build actions
+    post {
+        // Actions to take after the pipeline runs
+        success {
+            // Archive the built artifacts
+            archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+            
+            // Send success notification
+            script {
+                emailext (
+                    subject: "Successful Pipeline: ${currentBuild.fullDisplayName}",
+                    body: "The pipeline ${env.JOB_NAME} has succeeded.",
+                    to: 'team@yourcompany.com'
+                )
+            }
+        }
+        
+        failure {
+            // Send failure notification
+            script {
+                emailext (
+                    subject: "Failed Pipeline: ${currentBuild.fullDisplayName}",
+                    body: "The pipeline ${env.JOB_NAME} has failed. Check console output at ${env.BUILD_URL}.",
+                    to: 'team@yourcompany.com'
+                )
+            }
+        }
+        
+        // Always run cleanup
+        always {
+            // Clean workspace
+            cleanWs()
+        }
+    }
+}
