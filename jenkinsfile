@@ -1,0 +1,47 @@
+pipeline {
+    agent any
+    tools {
+        maven 'Maven 3.8.1' // Replace with your configured Maven version
+        jdk 'JDK 17'        // Replace with your configured JDK version
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        stage('Build') {
+            steps {
+                echo 'Building the application...'
+                sh 'mvn clean compile'
+            }
+        }
+        stage('Test') {
+            steps {
+                echo 'Running tests...'
+                sh 'mvn test'
+            }
+        }
+        stage('Package') {
+            steps {
+                echo 'Packaging the application...'
+                sh 'mvn package'
+            }
+        }
+        stage('Deploy') {
+            steps {
+                echo 'Deploying the application...'
+                // Add your deployment steps here
+            }
+        }
+    }
+    post {
+        success {
+            echo 'Build succeeded!'
+        }
+        failure {
+            echo 'Build failed!'
+        }
+    }
+}
+
