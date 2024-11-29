@@ -1,0 +1,55 @@
+pipeline {
+    agent any
+
+    tools {
+        maven 'Maven 3.8.1'  // Replace with your configured Maven version in Jenkins
+        jdk 'JDK 17'         // Replace with your configured JDK version in Jenkins
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out code...'
+                checkout scm  // Automatically checks out the source code
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo 'Building the application...'
+                sh 'mvn clean compile'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'Running unit tests...'
+                sh 'mvn test'
+            }
+        }
+
+        stage('Package') {
+            steps {
+                echo 'Packaging the application...'
+                sh 'mvn package'
+            }
+        }
+
+        stage('Archive Artifacts') {
+            steps {
+                echo 'Archiving build artifacts...'
+                archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Build completed successfully!'
+        }
+        failure {
+            echo 'Build failed. Please check the logs.'
+        }
+    }
+}
+
